@@ -19,6 +19,8 @@ from tensorflow_asr.utils import setup_environment, setup_strategy
 setup_environment()
 import tensorflow as tf
 
+# example: python train_streaming_transducer.py --config config.yml --max_ckpts 10 --tfrecords True --tbs 512 --ebs 256 
+
 DEFAULT_YAML = os.path.join(os.path.abspath(os.path.dirname(__file__)), "config.yml")
 
 tf.keras.backend.clear_session()

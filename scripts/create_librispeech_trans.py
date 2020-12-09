@@ -21,6 +21,8 @@ import unicodedata
 
 from tensorflow_asr.utils.utils import preprocess_paths
 
+# example: python -W ignore create_librispeech_trans.py -d /mnt/vinai/datasets/LibriSpeech-ASR/LibriSpeech/dev-other /mnt/vinai/datasets/LibriSpeech-ASR/LibriSpeech/dev-other-tsv
+
 parser = argparse.ArgumentParser(prog="Setup LibriSpeech Transcripts")
 
 parser.add_argument("--dir", "-d", type=str,

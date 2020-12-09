@@ -16,6 +16,8 @@ import argparse
 from tensorflow_asr.utils.utils import preprocess_paths
 from tensorflow_asr.datasets.asr_dataset import ASRTFRecordDataset
 
+# example: python create_tfrecords.py --mode eval --tfrecords_dir /mnt/vinai/datasets/LibriSpeech-ASR/LibriSpeech/dev-other-tfrecords /mnt/vinai/datasets/LibriSpeech-ASR/LibriSpeech/dev-other.tsv
+
 modes = ["train", "eval", "test"]
 
 parser = argparse.ArgumentParser(prog="TFRecords Creation")
