@@ -18,6 +18,7 @@ import codecs
 import unicodedata
 
 import numpy as np
+from packaging import version
 import tensorflow as tf
 import tensorflow_datasets as tds
 
@@ -232,7 +233,7 @@ class SubwordFeaturizer(TextFeaturizer):
             filename_prefix = os.path.splitext(preprocess_paths(filename))[0]
         else:
             filename_prefix = decoder_config.get("vocabulary", None)
-        subwords = tds.features.text.SubwordTextEncoder.load_from_file(filename_prefix)
+        subwords = tds.deprecated.text.SubwordTextEncoder.load_from_file(filename_prefix)
         return cls(decoder_config, subwords)
 
     def save_to_file(self, filename: str = None):
@@ -271,11 +272,18 @@ class SubwordFeaturizer(TextFeaturizer):
                 if x[0] == self.blank: x = x[1:]
                 return self.subwords.decode(x)
 
-            text = tf.map_fn(
-                lambda x: tf.numpy_function(decode, inp=[x], Tout=tf.string),
-                indices,
-                fn_output_signature=tf.TensorSpec([], dtype=tf.string)
-            )
+            if version.parse(tf.__version__) >= version.parse('2.3'):
+                text = tf.map_fn(
+                    lambda x: tf.numpy_function(decode, inp=[x], Tout=tf.string),
+                    indices,
+                    fn_output_signature=tf.TensorSpec([], dtype=tf.string)
+                )
+            else:
+                text = tf.map_fn(
+                    lambda x: tf.numpy_function(decode, inp=[x], Tout=tf.string),
+                    indices,
+                    dtype=tf.string
+                )
         return text
 
     @tf.function(

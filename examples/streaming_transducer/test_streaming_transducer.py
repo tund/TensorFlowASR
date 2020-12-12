@@ -19,17 +19,25 @@ from tensorflow_asr.utils import setup_environment, setup_devices
 setup_environment()
 import tensorflow as tf
 
+# example: python test_streaming_transducer.py --beam-width 0 --config /mnt/vinai/models/TensorFlowASR/streaming_transducers/02arch/config.yml --saved /mnt/vinai/models/TensorFlowASR/streaming_transducers/02arch/latest.h5 --tfrecords
+
 DEFAULT_YAML = os.path.join(os.path.abspath(os.path.dirname(__file__)), "config.yml")
 
 tf.keras.backend.clear_session()
 
-parser = argparse.ArgumentParser(prog="Conformer Testing")
+parser = argparse.ArgumentParser(prog="RNN-T Testing")
 
 parser.add_argument("--config", type=str, default=DEFAULT_YAML,
                     help="The file path of model configuration file")
 
 parser.add_argument("--saved", type=str, default=None,
                     help="Path to saved model")
+
+parser.add_argument("--beam-width", type=int, default=0,
+                    help="Beam search width")
+
+parser.add_argument("--bs", type=int, default=1,
+                    help="Batch size per replica")
 
 parser.add_argument("--tfrecords", default=False, action="store_true",
                     help="Whether to use tfrecords as dataset")
@@ -61,6 +69,9 @@ from tensorflow_asr.models.streaming_transducer import StreamingTransducer
 
 config = Config(args.config, learning=True)
 speech_featurizer = TFSpeechFeaturizer(config.speech_config)
+
+# decoder's configs
+config.decoder_config['beam_width'] = args.beam_width
 text_featurizer = CharFeaturizer(config.decoder_config)
 
 tf.random.set_seed(0)
@@ -97,4 +108,4 @@ streaming_transducer_tester = BaseTester(
     output_name=args.output_name
 )
 streaming_transducer_tester.compile(streaming_transducer)
-streaming_transducer_tester.run(test_dataset)
+streaming_transducer_tester.run(test_dataset, batch_size=args.bs)

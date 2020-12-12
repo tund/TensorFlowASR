@@ -44,6 +44,8 @@ def setup_devices(devices, cpu=False):
         if gpus:
             visible_gpus = [gpus[i] for i in devices]
             tf.config.set_visible_devices(visible_gpus, "GPU")
+            for gpu in visible_gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
             print("Run on", len(visible_gpus), "Physical GPUs")
 
 

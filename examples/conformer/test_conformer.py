@@ -19,6 +19,8 @@ from tensorflow_asr.utils import setup_environment, setup_devices
 setup_environment()
 import tensorflow as tf
 
+# example: python test_conformer.py --config /mnt/vinai/models/TensorFlowASR/subsampling-conformer/config.yml --saved /mnt/vinai/models/TensorFlowASR/subsampling-conformer/latest.h5 --tfrecords --bs 32
+
 DEFAULT_YAML = os.path.join(os.path.abspath(os.path.dirname(__file__)), "config.yml")
 
 tf.keras.backend.clear_session()
@@ -30,6 +32,9 @@ parser.add_argument("--config", type=str, default=DEFAULT_YAML,
 
 parser.add_argument("--saved", type=str, default=None,
                     help="Path to saved model")
+
+parser.add_argument("--bs", type=int, default=1,
+                    help="Batch size per replica")
 
 parser.add_argument("--tfrecords", default=False, action="store_true",
                     help="Whether to use tfrecords as dataset")
@@ -89,9 +94,10 @@ conformer.load_weights(args.saved, by_name=True)
 conformer.summary(line_length=120)
 conformer.add_featurizers(speech_featurizer, text_featurizer)
 
+print('Write results to:', args.output_name)
 conformer_tester = BaseTester(
     config=config.learning_config.running_config,
     output_name=args.output_name
 )
 conformer_tester.compile(conformer)
-conformer_tester.run(test_dataset)
+conformer_tester.run(test_dataset, batch_size=args.bs)

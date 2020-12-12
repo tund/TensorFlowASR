@@ -15,6 +15,7 @@
 # limitations under the License.
 import abc
 import os
+import sys
 from tqdm import tqdm
 from colorama import Fore
 
@@ -441,14 +442,15 @@ class BaseTester(BaseRunner):
             (file_paths, groundtruth, greedy, beamsearch, beamsearch_lm) each has shape [B]
         """
         file_paths, signals, labels = batch
-
         labels = self.model.text_featurizer.iextract(labels)
         greed_pred = self.model.recognize(signals)
         if self.model.text_featurizer.decoder_config.beam_width > 0:
             beam_pred = self.model.recognize_beam(signals, lm=False)
             beam_lm_pred = self.model.recognize_beam(signals, lm=True)
         else:
-            beam_pred = beam_lm_pred = tf.constant([""], dtype=tf.string)
+            beam_pred = beam_lm_pred = tf.constant('', shape=file_paths.shape, dtype=tf.string)
+            # another way
+            # beam_pred = beam_lm_pred = tf.cast(tf.fill(tf.shape(greed_pred)[:1], ''), tf.string)
 
         return file_paths, labels, greed_pred, beam_pred, beam_lm_pred
 

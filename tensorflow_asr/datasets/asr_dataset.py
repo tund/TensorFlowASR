@@ -202,7 +202,17 @@ class ASRTFRecordDataset(ASRDataset):
         return example["path"], features, input_length, label, label_length, pred_inp
 
     def create(self, batch_size):
-        # Create TFRecords dataset
+        """Create TFRecords dataset.
+        The flow is:
+            ASRTFRecordDataset:create() 
+              -> ASRTFRecordDataset:create_tfrecords()
+                -> ASRDataset:read_entries()
+              -> ASRDataset:process()
+                -> ASRTFRecordDataset:parse()
+                  -> ASRDataset:preprocess()
+        """
+        
+        
         have_data = self.create_tfrecords()
         if not have_data:
             return None
@@ -245,11 +255,16 @@ class ASRSliceDataset(ASRDataset):
 
 
 class ASRTFRecordTestDataset(ASRTFRecordDataset):
-    def preprocess(self, path, transcript):
+    def preprocess(self, audio, transcript):
         with tf.device("/CPU:0"):
-            signal = read_raw_audio(path.decode("utf-8"), self.speech_featurizer.sample_rate)
+            # signal = read_raw_audio(path.decode("utf-8"), self.speech_featurizer.sample_rate)
+            signal = read_raw_audio(audio, self.speech_featurizer.sample_rate)
+            signal = tf.convert_to_tensor(signal, tf.float32)
+            # Unlike training, dont extract features from signal.
+            # features = self.speech_featurizer.extract(signal)
+            # features = tf.convert_to_tensor(features, tf.float32)
             label = self.text_featurizer.extract(transcript.decode("utf-8"))
-            return path, signal, tf.convert_to_tensor(label, dtype=tf.int32)
+            return signal, tf.convert_to_tensor(label, dtype=tf.int32)
 
     @tf.function
     def parse(self, record):
@@ -259,12 +274,13 @@ class ASRTFRecordTestDataset(ASRTFRecordDataset):
             "transcript": tf.io.FixedLenFeature([], tf.string)
         }
         example = tf.io.parse_single_example(record, feature_description)
-
-        return tf.numpy_function(
+        features, label = tf.numpy_function(
             self.preprocess,
             inp=[example["audio"], example["transcript"]],
-            Tout=(tf.string, tf.float32, tf.int32)
+            Tout=(tf.float32, tf.int32)
         )
+
+        return example["path"], features, label
 
     def process(self, dataset, batch_size):
         dataset = dataset.map(self.parse, num_parallel_calls=AUTOTUNE)
@@ -293,7 +309,15 @@ class ASRTFRecordTestDataset(ASRTFRecordDataset):
         return dataset
 
     def create(self, batch_size):
-        # Create TFRecords dataset
+        """Create TFRecords dataset.
+        The flow is:
+            ASRTFRecordTestDataset:create() 
+            -> ASRTFRecordDataset:create_tfrecords()
+                -> ASRDataset:read_entries()
+            -> ASRTFRecordTestDataset:process()
+                -> ASRTFRecordTestDataset:parse()
+        """
+
         have_data = self.create_tfrecords()
         if not have_data: return None
 

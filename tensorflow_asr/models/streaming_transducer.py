@@ -13,6 +13,8 @@
 # limitations under the License.
 """ http://arxiv.org/abs/1811.06621 """
 
+from packaging import version
+
 import tensorflow as tf
 
 from .layers.subsampling import TimeReduction
@@ -257,7 +259,7 @@ class StreamingTransducer(Transducer):
         """
         def execute(signal: tf.Tensor):
             features = self.speech_featurizer.tf_extract(signal)
-            encoded, _ = self.encoder_inference(features, self.encoder.get_initial_states())
+            encoded, _ = self.encoder_inference(features, self.encoder.get_initial_state())
             hypothesis = self.perform_greedy(
                 encoded,
                 predicted=tf.constant(self.text_featurizer.blank, dtype=tf.int32),
@@ -267,7 +269,11 @@ class StreamingTransducer(Transducer):
             transcripts = self.text_featurizer.iextract(tf.expand_dims(hypothesis.prediction, axis=0))
             return tf.squeeze(transcripts)  # reshape from [1] to []
 
-        return tf.map_fn(execute, signals, fn_output_signature=tf.TensorSpec([], dtype=tf.string))
+        if version.parse(tf.__version__) >= version.parse('2.3'):
+            return tf.map_fn(execute, signals, fn_output_signature=tf.TensorSpec([], dtype=tf.string))
+        else:
+            with tf.device('/cpu:0'):
+                return tf.map_fn(execute, signals, dtype=tf.string)
 
     def recognize_tflite(self, signal, predicted, encoder_states, prediction_states):
         """
@@ -310,7 +316,7 @@ class StreamingTransducer(Transducer):
         """
         def execute(signal: tf.Tensor):
             features = self.speech_featurizer.tf_extract(signal)
-            encoded, _ = self.encoder_inference(features, self.encoder.get_initial_states())
+            encoded, _ = self.encoder_inference(features, self.encoder.get_initial_state())
             hypothesis = self.perform_beam_search(encoded, lm)
             prediction = tf.map_fn(lambda x: tf.strings.to_number(x, tf.int32),
                                    tf.strings.split(hypothesis.prediction), fn_output_signature=tf.TensorSpec([], dtype=tf.int32))

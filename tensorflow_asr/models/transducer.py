@@ -14,6 +14,8 @@
 """ https://arxiv.org/pdf/1811.06621.pdf """
 
 import collections
+from packaging import version
+
 import tensorflow as tf
 
 from . import Model
@@ -337,7 +339,11 @@ class Transducer(Model):
             transcripts = self.text_featurizer.iextract(tf.expand_dims(hypothesis.prediction, axis=0))
             return tf.squeeze(transcripts)  # reshape from [1] to []
 
-        return tf.map_fn(execute, signals, fn_output_signature=tf.TensorSpec([], dtype=tf.string))
+        if version.parse(tf.__version__) >= version.parse('2.3'):
+            return tf.map_fn(execute, signals, fn_output_signature=tf.TensorSpec([], dtype=tf.string))
+        else:
+            with tf.device("/cpu:0"):
+                return tf.map_fn(execute, signals, dtype=tf.string)
 
     def recognize_tflite(self, signal, predicted, states):
         """
@@ -451,14 +457,28 @@ class Transducer(Model):
             features = self.speech_featurizer.tf_extract(signal)
             encoded = self.encoder_inference(features)
             hypothesis = self.perform_beam_search(encoded, lm)
-            prediction = tf.map_fn(lambda x: tf.strings.to_number(x, tf.int32),
-                                   tf.strings.split(hypothesis.prediction), fn_output_signature=tf.TensorSpec([], dtype=tf.int32))
+            if version.parse(tf.__version__) >= version.parse('2.3'):
+                prediction = tf.map_fn(
+                    lambda x: tf.strings.to_number(x, tf.int32),
+                    tf.strings.split(hypothesis.prediction),
+                    fn_output_signature=tf.TensorSpec([], dtype=tf.int32))
+            else:
+                with tf.device("/cpu:0"):
+                    prediction = tf.map_fn(
+                        lambda x: tf.strings.to_number(x, tf.int32),
+                        tf.strings.split(hypothesis.prediction),
+                        dtype=tf.int32)
             transcripts = self.text_featurizer.iextract(tf.expand_dims(prediction, axis=0))
             return tf.squeeze(transcripts)  # reshape from [1] to []
 
-        return tf.map_fn(execute, signals, fn_output_signature=tf.TensorSpec([], dtype=tf.string))
+        if version.parse(tf.__version__) >= version.parse('2.3'):
+            return tf.map_fn(execute, signals, fn_output_signature=tf.TensorSpec([], dtype=tf.string))
+        else:
+            with tf.device("/cpu:0"):
+                return tf.map_fn(execute, signals, dtype=tf.string)
 
     def perform_beam_search(self, encoded, lm=False):
+        # with tf.device("/cpu:0"):
         with tf.name_scope(f"{self.name}_beam_search"):
             beam_width = tf.cond(
                 tf.less(self.text_featurizer.decoder_config.beam_width, self.text_featurizer.num_classes),
